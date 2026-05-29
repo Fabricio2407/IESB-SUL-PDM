@@ -1,13 +1,80 @@
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  FlatList,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function App() {
+  const [taskText, setTaskText] = useState('');
+  const [tasks, setTasks] = useState([]);
+
+  // Função para salvar tarefas no AsyncStorage
+  const saveTasks = async (tasksToSave) => {
+    try {
+      await AsyncStorage.setItem('tasks', JSON.stringify(tasksToSave));
+    } catch (error) {
+      console.error('Erro ao salvar tarefas:', error);
+    }
+  };
+
+  // Função para carregar tarefas do AsyncStorage
+  const loadTasks = async () => {
+    try {
+      const savedTasks = await AsyncStorage.getItem('tasks');
+      if (savedTasks) {
+        setTasks(JSON.parse(savedTasks));
+      }
+    } catch (error) {
+      console.error('Erro ao carregar tarefas:', error);
+    }
+  };
+
+  // Carregar tarefas quando o app abrir
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  // Função para adicionar tarefa
+  const handleAdd = () => {
+    if (taskText.trim() === '') return;
+
+    const newTask = {
+      id: Date.now().toString(),
+      task: taskText,
+    };
+
+    const updatedTasks = [...tasks, newTask];
+    setTasks(updatedTasks);
+    saveTasks(updatedTasks);
+    setTaskText('');
+  };
+
+  // Função para deletar tarefa
+  const handleDelete = (id) => {
+    const updatedTasks = tasks.filter((task) => task.id !== id);
+    setTasks(updatedTasks);
+    saveTasks(updatedTasks);
+  };
+
+  // Renderizar cada item da FlatList
+  const renderTaskItem = ({ item }) => (
+    <View style={styles.taskCard}>
+      <Text style={styles.taskText}>{item.task}</Text>
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => handleDelete(item.id)}
+      >
+        <Text style={styles.deleteButtonText}>X</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Minhas Tarefas</Text>
@@ -17,32 +84,20 @@ export default function App() {
           style={styles.input}
           placeholder="Digite uma tarefa"
           placeholderTextColor="#999"
+          value={taskText}
+          onChangeText={setTaskText}
         />
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
           <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.taskCard}>
-        <Text style={styles.taskText}>Comprar mantimentos para a semana</Text>
-        <TouchableOpacity style={styles.deleteButton}>
-          <Text style={styles.deleteButtonText}>X</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.taskCard}>
-        <Text style={styles.taskText}>Estudar React Native por 1 hora</Text>
-        <TouchableOpacity style={styles.deleteButton}>
-          <Text style={styles.deleteButtonText}>X</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.taskCard}>
-        <Text style={styles.taskText}>Organizar a mochila antes da aula</Text>
-        <TouchableOpacity style={styles.deleteButton}>
-          <Text style={styles.deleteButtonText}>X</Text>
-        </TouchableOpacity>
-      </View>
+      <FlatList
+        data={tasks}
+        renderItem={renderTaskItem}
+        keyExtractor={(item) => item.id}
+        scrollEnabled={true}
+      />
 
       <StatusBar style="auto" />
     </View>
